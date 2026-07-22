@@ -1,0 +1,73 @@
+import argparse
+# import json
+
+ALLOWED_RATINGS = [x*100 for x in range(8, 36)]
+ALLOWED_TAGS = [
+    "implementation",
+    "math",
+    "greedy",
+    "dp",
+    "data structures",
+    "brute force",
+    "constructive algorithms",
+    "graphs",
+    "sortings",
+    "binary search",
+    "dfs and similar",
+    "trees",
+    "strings",
+    "number theory",
+    "combinatorics",
+    "geometry",
+    "bitmasks",
+    "two pointers",
+    "dsu",
+    "shortest paths",
+    "probabilities",
+    "divide and conquer",
+    "hashing",
+    "games",
+    "flows",
+    "interactive",
+    "matrices",
+    "string suffix structures",
+    "fft",
+    "graph matchings",
+    "ternary search",
+    "expression parsing",
+    "meet-in-the-middle",
+    "2-sat",
+    "chinese remainder theorem",
+    "schedules",
+]
+
+description = "A command line utility for suggesting problem from Codeforces, with limited ThemeCP support. Learn more about ThemeCPs here: https://codeforces.com/blog/entry/136704."
+
+parser = argparse.ArgumentParser(description=description)
+parser.add_argument("-r", "--rating", type=int, help=f"sets rating of problem to suggest; valid values for RATING:\n{', '.join([str(x) for x in ALLOWED_RATINGS])}")
+parser.add_argument("-t", "--tag", type=str, help=f"sets tag of problem to suggest; valid values for TAG (enclose multi-worded ones in quotes):\n{', '.join(ALLOWED_TAGS)}")
+parser.add_argument("-l", "--level", type=int, help="sets ThemeCP level, and suggests 4 problems based on that level\nthis is a standalone argument and cannot be used with either -r/--rating or -t/--tag; valid values for LEVEL are integers from 1 to 109")
+args = parser.parse_args()
+
+if args.rating is not None and args.rating not in ALLOWED_RATINGS:
+    # print allowed values in two columns
+    parser.error("argument value for -r/--rating is invalid")
+
+if args.tag is not None and args.tag not in ALLOWED_TAGS:
+    # print allowed values in two columns
+    parser.error("argument value for -t/--tag is invalid")
+
+if args.level is not None and (args.rating is not None or args.tag is not None):
+    parser.error("argument -l/--level cannot be used with either -r/--rating or -t/--tag")
+
+if args.level is not None:
+    if args.level < 1 or args.level > 109:
+        parser.error("argument value for -l/--level is invalid")
+
+# also ask for user handle
+
+# if no user handle given
+# suggest a random problem based on given rating/tag
+# else
+# preload previously solved problems
+# suggest a random unsolved problem based on given rating/tag
