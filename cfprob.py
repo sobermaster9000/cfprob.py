@@ -48,12 +48,16 @@ API_ENDPOINT = CODEFORCES_URL + "api/"
 
 DESCRIPTION = "A command line utility for suggesting problem from Codeforces, with limited ThemeCP support. Learn more about ThemeCPs here: https://codeforces.com/blog/entry/136704."
 
-def get_themecp_ratings(level):
+def get_themecp_data(level):
     lines = []
     with open("themecp_level_sheet.csv", "r") as file:
         lines = [line.strip()  for line in file.readlines()]
     _, time, perf, p1, p2, p3, p4 = map(int, lines[level].split(","))
-    return p1, p2, p3, p4
+    return {
+        "time": time,
+        "perf": perf,
+        "problem_ratings": [p1, p2, p3, p4]
+    }
 
 def suggest_problem(rating=None, tag=None, user_handle=None, themecp_problems=None):
     solved_problems = set()
@@ -135,14 +139,14 @@ if __name__ == "__main__":
             if args.user is not None:
                 print("[*] User handle is present:", args.user)
 
-            themecp_ratings = get_themecp_ratings(args.level)
+            themecp_data = get_themecp_data(args.level)
             themecp_problems = set()
 
             print("[+] Suggested problems:")
             print("RATING\t|\tLINK")
             print("-----------------------------------------------------------------")
 
-            for rating in themecp_ratings:
+            for rating in themecp_data["problem_ratings"]:
                 problem_link = suggest_problem(rating=rating, user_handle=args.user, themecp_problems=themecp_problems)
                 print(f"{rating}\t|\t{problem_link}")
 
