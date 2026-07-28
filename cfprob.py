@@ -2,6 +2,7 @@ from sys import argv
 import argparse
 import requests
 from random import randint
+import json
 
 ALLOWED_RATINGS = [x*100 for x in range(8, 36)]
 ALLOWED_TAGS = [
@@ -47,6 +48,17 @@ CODEFORCES_URL = "https://codeforces.com/"
 API_ENDPOINT = CODEFORCES_URL + "api/"
 
 DESCRIPTION = "A command line utility for suggesting problem from Codeforces, with limited ThemeCP support. Learn more about ThemeCPs here: https://codeforces.com/blog/entry/136704."
+
+def get_user_handle(fallback_handle):
+    saved_data = dict()
+    try:
+        with open("saved.json", "r") as file:
+            saved_data = json.loads(file.read().strip())
+    except FileNotFoundError:
+        print("[-] Cannot open saved.json")
+    if fallback_handle is not None:
+        return fallback_handle
+    return saved_data.get("user_handle", fallback_handle)
 
 def get_themecp_data(level):
     lines = []
@@ -103,7 +115,8 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--rating", type=int, help=f"sets rating of problem to suggest; valid values for RATING:\n{', '.join([str(x) for x in ALLOWED_RATINGS])}")
     parser.add_argument("-t", "--tag", type=str, help=f"sets tag of problem to suggest; valid values for TAG (enclose multi-worded ones in quotes):\n{', '.join(ALLOWED_TAGS)}")
     parser.add_argument("-l", "--level", type=int, help="sets ThemeCP level, and suggests 4 problems based on that level; this cannot be used with -r/--rating; valid values for LEVEL are integers from 1 to 109")
-    parser.add_argument("-u", "--user", type=str, help="sets user handle such that the suggested problem/s are ones that have not yet been solved by this user")
+    parser.add_argument("-u", "--user", type=str, help="sets user handle such that the suggested problem/s are ones that have not yet been solved by this user; overrides the current saved user handle")
+    parser.add_argument("--set-user", type=str, help="saves user handle to check for, which eliminates the need to repeatedly include the user handle in the arguments")
     args = parser.parse_args()
     
     if args.rating is not None and args.rating not in ALLOWED_RATINGS:
@@ -120,24 +133,38 @@ if __name__ == "__main__":
     if args.level is not None:
         if args.level < 1 or args.level > 109:
             parser.error("argument value for -l/--level is invalid")
-    
+   
+    if args.set_user is not None:
+        saved_data = dict()
+        try:
+            with open("saved.json", "r") as file:
+                saved_data = json.loads(file.read().strip())
+        except FileNotFoundError:
+            print("[-] Could not open saved.json")
+        saved_data["user_handle"] = args.set_user
+        with open("saved.json", "w") as file:
+            file.write(json.dumps(saved_data))
+        print(f"[+] User handle {args.set_user} saved")
+
+    user_handle = get_user_handle(args.user)
+
     try:
         if args.level is None:
             if args.rating is not None:
                 print("[*] Rating present:", args.rating)
             if args.tag is not None:
                 print("[*] Tag present:", args.tag)
-            if args.user is not None:
-                print("[*] User handle is present:", args.user)
+            if user_handle is not None:
+                print("[*] Using user handle:", user_handle)
 
-            problem_link = suggest_problem(rating=args.rating, tag=args.tag, user_handle=args.user)
+            problem_link = suggest_problem(rating=args.rating, tag=args.tag, user_handle=user_handle)
             print(f"[+] Suggested problem: {problem_link}")
         else:
             print("[*] ThemeCP level present:", args.level)
             if args.tag is not None:
                 print("[*] Tag present:", args.tag)
-            if args.user is not None:
-                print("[*] User handle is present:", args.user)
+            if user_handle is not None:
+                print("[*] Using user handle:", user_handle)
 
             themecp_data = get_themecp_data(args.level)
             themecp_problems = set()
@@ -147,13 +174,12 @@ if __name__ == "__main__":
             print("-----------------------------------------------------------------")
 
             for rating in themecp_data["problem_ratings"]:
-                problem_link = suggest_problem(rating=rating, user_handle=args.user, themecp_problems=themecp_problems)
+                problem_link = suggest_problem(rating=rating, tag=args.tag, user_handle=user_handle, themecp_problems=themecp_problems)
                 print(f"{rating}\t|\t{problem_link}")
 
     except Exception as e:
         print("[!] An error occured while searching for problem/s:")
         print(e)
 
-# TODO
-# add a flag like --set-user to save user to local file and eliminate repetitive flag setting
+# OPTIONAL:
 # allow -t/--tag to receive multiple tags
