@@ -49,6 +49,16 @@ API_ENDPOINT = CODEFORCES_URL + "api/"
 
 DESCRIPTION = "A command line utility for suggesting problem from Codeforces, with limited ThemeCP support. Learn more about ThemeCPs here: https://codeforces.com/blog/entry/136704."
 
+def is_cf_contest(contestId):
+    try:
+        response = requests.get(API_ENDPOINT + "contest.standings", params={"contestId": contestId})
+        if response.status_code != requests.codes.ok:
+            response.raise_for_status()
+        return "codeforces round" in response.json()["result"]["contest"]["name"].lower()
+    except Exception as e:
+        # fallback return value
+        return False
+
 def get_user_handle(fallback_handle):
     saved_data = dict()
     try:
@@ -71,7 +81,7 @@ def get_themecp_data(level):
         "problem_ratings": [p1, p2, p3, p4]
     }
 
-def suggest_problem(rating=None, tag=None, user_handle=None, themecp_problems=None):
+def suggest_problem(rating=None, tag=None, user_handle=None, themecp_problems=None, cf=False):
     solved_problems = set()
     if user_handle is not None:
         response = requests.get(API_ENDPOINT + "user.status", params={"handle": user_handle})
@@ -96,13 +106,20 @@ def suggest_problem(rating=None, tag=None, user_handle=None, themecp_problems=No
         if scanned >= len(problems):
             raise Exception("Could not find requested problem")
         scanned += 1
+
         if rating is not None:
             if "rating" not in problem:
                 continue
             if problem["rating"] != rating:
                 continue
+
         if (problem["contestId"], problem["index"]) in solved_problems:
             continue
+
+        if cf:
+            if not is_cf_contest(problem["contestId"]):
+                continue
+
         break
 
     if themecp_problems is not None:
@@ -117,6 +134,7 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--level", type=int, help="sets ThemeCP level, and suggests 4 problems based on that level; this cannot be used with -r/--rating; valid values for LEVEL are integers from 1 to 109")
     parser.add_argument("-u", "--user", type=str, help="sets user handle such that the suggested problem/s are ones that have not yet been solved by this user; overrides the current saved user handle")
     parser.add_argument("--set-user", type=str, help="saves user handle to check for, which eliminates the need to repeatedly include the user handle in the arguments")
+    parser.add_argument("--cf", action="store_true", help="adding this flag blacklists problems from non-Codeforces contests")
     args = parser.parse_args()
     
     if args.rating is not None and args.rating not in ALLOWED_RATINGS:
@@ -157,7 +175,7 @@ if __name__ == "__main__":
             if user_handle is not None:
                 print("[*] Using user handle:", user_handle)
 
-            problem_link = suggest_problem(rating=args.rating, tag=args.tag, user_handle=user_handle)
+            problem_link = suggest_problem(rating=args.rating, tag=args.tag, user_handle=user_handle, cf=args.cf)
             print(f"[+] Suggested problem: {problem_link}")
         else:
             print("[*] ThemeCP level present:", args.level)
@@ -174,7 +192,7 @@ if __name__ == "__main__":
             print("-----------------------------------------------------------------")
 
             for rating in themecp_data["problem_ratings"]:
-                problem_link = suggest_problem(rating=rating, tag=args.tag, user_handle=user_handle, themecp_problems=themecp_problems)
+                problem_link = suggest_problem(rating=rating, tag=args.tag, user_handle=user_handle, themecp_problems=themecp_problems, cf=args.cf)
                 print(f"{rating}\t|\t{problem_link}")
 
     except Exception as e:
